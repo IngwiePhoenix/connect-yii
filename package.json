@@ -1,6 +1,6 @@
 {
   "name": "connect-yii",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "connect middleware to pass requests to FastCGI server",
   "main": "index.js",
   "author": "Pavel Kurnosov <pashky@gmail.com>",

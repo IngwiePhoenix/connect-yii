@@ -7,7 +7,7 @@ module.exports = function fastcgi(newOptions) {
     , sys     = require("sys")
     , fastcgi = require("fastcgi-parser");
 
-    var debug = 0 ? console : { log: function(){}, dir: function(){} };
+    var debug = console;
 
     var FCGI_RESPONDER = fastcgi.constants.role.FCGI_RESPONDER;
     var FCGI_BEGIN     = fastcgi.constants.record.FCGI_BEGIN;
@@ -172,7 +172,7 @@ module.exports = function fastcgi(newOptions) {
                 if (record.header.type == FCGI_STDOUT && !hadheaders) {
                     body = record.body;
 
-                    debug.log(body);
+                    //debug.log(body);
 
                     var parts = body.split("\r\n\r\n");
 
@@ -253,14 +253,25 @@ module.exports = function fastcgi(newOptions) {
     return function(request, response, next) {
         var script_dir = options.root;
 
-        var matches = request.url.match(/^(.+\.php)(.+)$/);
+        var matches = request.url.match(/(.+\.php)(.*?)/);
+
         if(matches != null) {
             var script_file = matches[1];
             var document_uri = url.parse(matches[1]).pathname;
             var path_info = matches[2];
         } else {
-            var script_file = document_uri = "/"+options.index;
-            var path_info = "";
+            if(request.url == "/") {
+                var script_file = document_uri = "/"+options.index;
+                var path_info = "";
+            } else if(!fs.existsSync(script_dir+request.url)) {console.log("--catch 2");
+                // This might be a trap with a .jpg file...check first.
+                var document_uri = request.url;
+                var script_file = "/"+options.index;
+                var path_info = "";
+            } else {
+                next();
+                return;
+            }
         }
 
         var request_uri = request.headers['x-request-uri'] ? request.headers['x-request-uri'] : request.url;
