@@ -1,19 +1,32 @@
 {
-    "name": "connect-fastcgi",
-    "version": "0.0.2",
-    "description": "connect middleware to pass requests to FastCGI server",
-    "main": "index.js",
-    "author": {
-        "name": "Pavel Kurnosov",
-        "email": "pashky@gmail.com"
-    },    
-    "keywords": ["connect","middleware","fastcgi","fpm","php"],
-    "repository" : {
-        "type": "git",
-        "url": "https://github.com/pashky/connect-fastcgi.git"
-    },
-    "dependencies": {
-        "fastcgi-parser": "0.1.x"
-    },
-    "engines": { "node": "*" }
+  "name": "connect-yii",
+  "version": "0.0.2",
+  "description": "connect middleware to pass requests to FastCGI server",
+  "main": "index.js",
+  "author": "Pavel Kurnosov <pashky@gmail.com>",
+  "keywords": [
+    "connect",
+    "middleware",
+    "fastcgi",
+    "fpm",
+    "php"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pashky/connect-fastcgi.git"
+  },
+  "dependencies": {
+    "fastcgi-parser": "0.1.x"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "bugs": {
+    "url": "https://github.com/pashky/connect-fastcgi/issues"
+  },
+  "homepage": "https://github.com/pashky/connect-fastcgi",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "ISC"
 }

@@ -21,7 +21,7 @@ module.exports = function fastcgi(newOptions) {
      *
      * Some headers have to be modified to fit the FPM
      * handler and some others don't. For instance, the Content-Type
-     * header, when received, has to be made upper-case and the 
+     * header, when received, has to be made upper-case and the
      * hyphen has to be made into an underscore. However, the Accept
      * header has to be made uppercase, hyphens turned into underscores
      * and the string "HTTP_" has to be appended to the header.
@@ -84,9 +84,9 @@ module.exports = function fastcgi(newOptions) {
             "role": FCGI_RESPONDER,
             "flags": fastcgi.constants.keepalive.OFF
         };
-        
+
         var collectedStdin = [], noMoreData = false;
-        
+
         function endRequest() {
             if(writer) {
                 header.type = FCGI_STDIN;
@@ -98,7 +98,7 @@ module.exports = function fastcgi(newOptions) {
             } else {
                 noMoreData = true;
             }
-        }    
+        }
 
         function sendRequest (connection) {
             header.type = FCGI_BEGIN;
@@ -118,62 +118,62 @@ module.exports = function fastcgi(newOptions) {
             header.contentLength = 0;
             writer.writeHeader(header);
             connection.write(writer.tobuffer());
-            
+
             // header.type = FCGI_STDOUT;
             // writer.writeHeader(header);
             // connection.write(writer.tobuffer());
 
             if((request.method != 'PUT' && request.method != 'POST')) {
-                endRequest()        
+                endRequest()
             } else {
                 for(var j = 0; j < collectedStdin.length; ++j) {
                     header.type = FCGI_STDIN;
                     header.contentLength = collectedStdin[j].length;
                     header.paddingLength = 0;
                     writer.writeHeader(header);
-                    writer.writeBody(collectedStdin[j]);        
+                    writer.writeBody(collectedStdin[j]);
                     connection.write(writer.tobuffer());
                 }
-                collectedStdin = [];                    
+                collectedStdin = [];
                 if(noMoreData) {
                     endRequest();
                 }
             }
         };
-        
+
         request.on('data', function(chunk) {
-            if(writer) {            
+            if(writer) {
                 header.type = FCGI_STDIN;
                 header.contentLength = chunk.length;
                 header.paddingLength = 0;
                 writer.writeHeader(header);
-                writer.writeBody(chunk);        
+                writer.writeBody(chunk);
                 connection.write(writer.tobuffer())
             } else {
                 collectedStdin.push(chunk);
             }
-        });        
-        
-        request.on('end', endRequest);          
+        });
+
+        request.on('end', endRequest);
 
         connection.ondata = function (buffer, start, end) {
-            parser.execute(buffer, start, end); 
+            parser.execute(buffer, start, end);
         };
 
         connection.addListener("connect", function() {
             writer = new fastcgi.writer();
             parser = new fastcgi.parser();
-            
+
             writer.encoding = 'binary';
-            
+
             var body="", hadheaders = false;
 
             parser.onRecord = function(record) {
                 if (record.header.type == FCGI_STDOUT && !hadheaders) {
                     body = record.body;
-                    
+
                     debug.log(body);
-                    
+
                     var parts = body.split("\r\n\r\n");
 
                     var headers = parts[0];
@@ -197,24 +197,24 @@ module.exports = function fastcgi(newOptions) {
                     } catch (err) {
                         //console.log(err);
                     }
-                    
+
                     debug.log('  --> Request Response Status Code: "' + responseStatus + '"');
-                    
+
                     if(responseStatus === "404") {
                         next();
                         parser.onRecord = function() {};
                         connection.end();
                         return;
-                    }                    
+                    }
 
                     response.writeHead(responseStatus, headers);
-                    
+
                     hadheaders = true;
 
-                    
-                } else if(record.header.type == FCGI_STDOUT && hadheaders) {                
+
+                } else if(record.header.type == FCGI_STDOUT && hadheaders) {
                     body += record.body;
-                } else if(record.header.type == FCGI_END) {                
+                } else if(record.header.type == FCGI_END) {
                     response.end(body);
                 }
             };
@@ -223,7 +223,7 @@ module.exports = function fastcgi(newOptions) {
                 //console.log(err);
             };
 
-            sendRequest(connection);         
+            sendRequest(connection);
         });
 
         connection.addListener("close", function() {
@@ -235,24 +235,34 @@ module.exports = function fastcgi(newOptions) {
             connection.end();
         });
 
-        connection.connect(options.fastcgiPort, options.fastcgiHost);    
+        connection.connect(options.fastcgiPort, options.fastcgiHost);
     }
 
     // Let's mix those options.
     var options = {
         fastcgiPort: 9000,
         fastcgiHost: 'localhost',
-        root: ''
+        root: '',
+        index: "index.php"
     };
 
     for (var k in newOptions) {
         options[k] = newOptions[k];
-    }    
-    
+    }
+
     return function(request, response, next) {
         var script_dir = options.root;
-        var script_file = url.parse(request.url).pathname;
-        
+
+        var matches = request.url.match(/^(.+\.php)(.+)$/);
+        if(matches != null) {
+            var script_file = matches[1];
+            var document_uri = url.parse(matches[1]).pathname;
+            var path_info = matches[2];
+        } else {
+            var script_file = document_uri = "/"+options.index;
+            var path_info = "";
+        }
+
         var request_uri = request.headers['x-request-uri'] ? request.headers['x-request-uri'] : request.url;
         var qs = url.parse(request_uri).query ? url.parse(request_uri).query : '';
         var params = makeHeaders(request.headers, [
@@ -261,15 +271,15 @@ module.exports = function fastcgi(newOptions) {
             ["QUERY_STRING", qs],
             ["REQUEST_METHOD", request.method],
             ["SCRIPT_NAME", script_file],
-            ["PATH_INFO", script_file],
-            ["DOCUMENT_URI", script_file],
+            ["PATH_INFO", path_info],
+            ["DOCUMENT_URI", document_uri],
             ["REQUEST_URI", request_uri],
             ["DOCUMENT_ROOT", script_dir],
             ["PHP_SELF", script_file],
             ["GATEWAY_PROTOCOL", "CGI/1.1"],
             ["SERVER_SOFTWARE", "node/" + process.version]
         ]);
-        
+
         debug.log('Incoming Request: ' + request.method + ' ' + request.url);
         debug.dir(params);
         server(request, response, params, options, next);
