@@ -1,9 +1,12 @@
 {
   "name": "connect-yii",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "connect middleware to pass requests to FastCGI server",
   "main": "index.js",
-  "author": "Pavel Kurnosov <pashky@gmail.com>",
+  "author": {
+    "name": "Pavel Kurnosov",
+    "email": "pashky@gmail.com"
+  },
   "keywords": [
     "connect",
     "middleware",
@@ -16,7 +19,7 @@
     "url": "https://github.com/pashky/connect-fastcgi.git"
   },
   "dependencies": {
-    "fastcgi-parser": "0.1.x"
+    "fastcgi-parser": "*"
   },
   "engines": {
     "node": "*"
@@ -28,5 +31,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "readme": "# What\n\nconnect middleware to pass requests to FastCGI server process.\n\n# Why\n\nBecause PHP-FPM. Yes, that's right, it's insanity, but I need it, mainly\nfor development and automated testing tasks I do with grunt and simple\nnode.js scripts.\n\nThis module is a stripped down version of this\nhttps://github.com/davidcoallier/node-php server converted to connect\nmiddleware. It was then modified to support POST and PUT, pass\nrequired headers etc.\n\n# How\n\n```javascript\nvar connect = require('connect'), \n    php = require('../connect-fastcgi');\n\nvar app = connect()\n        .use('/php', php({ fastcgiPort: 8002, fastcgiHost: 'localhost', root: \"./php\" }))\n        .use(connect.logger())\n        .use(connect.static('./assets'))\n        .listen(3000);\n```\n\nAvailable options:\n\n- `root:` root directory for scripts\n- `fastcgiHost:` host or socket path to FastCGI process\n- `fastcgiPort:` port\n\n# Thanks\n\n[David Coallier](https://github.com/davidcoallier) for original node-php module\n\n",
+  "readmeFilename": "README.md",
+  "gitHead": "8cd71ee640824e1a756e7ac0497b2f266f26400e",
+  "_id": "connect-yii@0.0.3",
+  "_shasum": "b78ba7f0ed1e24c9e680782aa29dfb99b41f1d05",
+  "_from": "node_modules/connect-yii"
 }
