@@ -34,7 +34,7 @@ function client(options) {
 	var sredirectstatus = options.redirectStatus || null;
 	var _current = null;
 
-	//console.log("    --> psname",psname);
+	////console.log("    --> psname",psname);
 
 	connection.setNoDelay(true);
 	connection.setTimeout(0);
@@ -72,7 +72,7 @@ function client(options) {
 	};
 
 	htparser.onHeaderValue = function (b, start, len) {
-		console.log("  -> onHeaderValue",b.toString('ascii', start, start+len));
+		////console.log("  -> onHeaderValue",b.toString('ascii', start, start+len));
 		var slice = b.toString('ascii', start, start+len);
 		if (htparser.value) {
 			htparser.value += slice;
@@ -82,7 +82,7 @@ function client(options) {
 	};
 
 	htparser.onHeadersComplete = function (info) {
-		console.log("  -> info:",info);
+		////console.log("  -> info:",info);
 		if (htparser.field && (htparser.value != undefined)) {
 			var dest = _current.fcgi.headers;
 			if (htparser.field in dest) {
@@ -111,16 +111,16 @@ function client(options) {
 	}
 
 	connection.parser.onHeader = function(header) {
-		//console.log("  -> Header",header);
+		////console.log("  -> Header",header);
 		_current = requests[header.recordId];
 	}
 
 	connection.parser.onBody = function(buffer, start, len) {
-		//console.log(buffer.toString("utf8", start, start + len));
+		////console.log(buffer.toString("utf8", start, start + len));
 		if(!_current.fcgi.body) {
 			htparser.reinitialize("response");
 			_current.fcgi.headers = {};
-			var content = buffer.toString("utf8",start, start + len);
+			var content = buffer.toString("binary",start, start + len);
 			var contents = content.split("\r\n\r\n");
 			var status = contents[0];
 			var match = status.match(phprx);
@@ -134,6 +134,7 @@ function client(options) {
 					if(parsed.bytesParsed) {
 						_current.resp.write(buff.slice(start + parsed.bytesParsed, start + len));
 					}
+					_current.resp.statusCode = match[1];
 				}
 				catch(ex) {
 					_current.cb(ex);
@@ -147,13 +148,14 @@ function client(options) {
 					if(parsed.bytesParsed) {
 						_current.resp.write(buffer.slice(start + parsed.bytesParsed, start + len));
 					}
+					_current.resp.statusCode = 200;
 				}
 				catch(ex) {
 					_current.cb(ex);
 				}
 			}
 			// Add headers
-			console.log(contents[0]);
+			////console.log(contents[0]);
 			if(typeof contents[1] != "undefined") {
 				// We have headers to use.
 				var hdrs = contents[0].split("\r\n");
@@ -168,15 +170,15 @@ function client(options) {
 			} else {
 				toPrint = contents[1];
 			}
-			console.log("  -> Printing:", toPrint);
-			console.log("  -> Contents:",contents);
+			////console.log("  -> Printing:", toPrint);
+			////console.log("  -> Contents:",contents);
 			_current.resp.write(toPrint);
 			_current.fcgi.body = true;
 		}
 		else {
 			try {
 				var parsed = htparser.execute(buffer, start, len);
-				//console.log("-> Parsed message:",parsed);
+				////console.log("-> Parsed message:",parsed);
 				if(parsed.message == "Parse Error" && ("bytesParsed" in parsed)) {
 					_current.resp.write(buffer.slice(start + parsed.bytesParsed, start + len));
 				}
@@ -188,7 +190,7 @@ function client(options) {
 	}
 
 	connection.parser.onRecord = function(record) {
-		//console.log(record);
+		////console.log(record);
 		var recordId = parseInt(record.header.recordId);
 		var request = requests[recordId];
 		switch(record.header.type) {

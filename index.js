@@ -51,8 +51,8 @@ module.exports = function fastcgi(newOptions) {
         }
     });
     agent.on("error", function(err) {
-        console.log("client.error");
-        console.log(err);
+        console.error("client.error");
+        console.error(err);
     });
     return function(req, res, next) {
         var script_dir = options.root;
@@ -92,12 +92,11 @@ module.exports = function fastcgi(newOptions) {
         ]);
 
         agent.request(req, res, function(err, response) {
-            console.log("-> Connect-Yii: ", req.uri);
-            console.log(req.headers);
+            //console.log("-> Connect-Yii: ", request_uri);
             if(err) {
-                console.log(err);
-                //res.writeHead({"Content-type": "text/plain"}, 500);
-                //res.end(err);
+                console.error(err);
+                res.writeHead({"Content-type": "text/plain"}, 500);
+                res.end(err);
                 //next();
             }
         });
