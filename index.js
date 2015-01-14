@@ -76,7 +76,7 @@ module.exports = function fastcgi(newOptions) {
         }
         var request_uri = req.headers['x-request-uri'] ? req.headers['x-request-uri'] : req.url;
         var qs = url.parse(request_uri).query ? url.parse(request_uri).query : '';
-        req.headers = makeHeaders(req.headers, [
+        var headers = makeHeaders(req.headers, [
             ["SCRIPT_FILENAME",script_dir + script_file],
             ["REMOTE_ADDR",req.connection.remoteAddress],
             ["QUERY_STRING", qs],
@@ -90,6 +90,21 @@ module.exports = function fastcgi(newOptions) {
             ["GATEWAY_PROTOCOL", "CGI/1.1"],
             ["SERVER_SOFTWARE", "node/" + process.version]
         ]);
+
+        // Merging headers so othe rmiddlewares dont get lost.
+        /*
+        var newHeads=[];
+        for(var hdr in headers) {
+            var val = headers[hdr];
+            newHeads.push([val[0], val[1]]);
+        }
+        for(var hdr in req.headers) {
+            var val = req.headers[hdr];
+            newHeads.push([hdr, val]);
+        }
+        req.headers = newHeads;
+        */
+        req.php_headers = headers;
 
         agent.request(req, res, function(err, response) {
             //console.log("-> Connect-Yii: ", request_uri);

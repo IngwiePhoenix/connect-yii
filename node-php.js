@@ -261,18 +261,8 @@ function client(options) {
 		var req = request.req;
 		req.resume();
 		var params = connection.params.slice(0);
-		/*
-		params.push(["REMOTE_ADDR", req.connection.remoteAddress]);
-		params.push(["REMOTE_PORT", req.connection.remotePort.toString()]);
-		req.url = url.parse(req.url);
-		params.push(["SCRIPT_FILENAME", options.root + req.url.pathname]);
-		params.push(["QUERY_STRING", req.url.query || ""]);
-		params.push(["REQUEST_METHOD", req.method]);
-		params.push(["SCRIPT_NAME", req.url.pathname]);
-		params.push(["REQUEST_URI", req.url.pathname + (req.url.query || "")]);
-		params.push(["DOCUMENT_URI", req.url.pathname]);
-		*/
-		params = req.headers;
+		params = req.php_headers;
+		//console.log(req.headers);
 		//TODO: probably better to find a generic way of translating all http headers on request into PHP headers
 		if("user-agent" in req.headers) {
 			params.push(["HTTP_USER_AGENT", req.headers["user-agent"]]);
