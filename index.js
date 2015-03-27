@@ -40,21 +40,23 @@ module.exports = function fastcgi(newOptions) {
         options[k] = newOptions[k];
     }
 
-    var agent = new nphp.Agent(4, {
-        root: options.root,
-        host: options.fastcgiHost,
-        port: options.fastcgiPort,
-        server: {
-            name: options.serverName,
-            host: options.serverHost,
-            port: options.serverPort
-        }
-    });
-    agent.on("error", function(err) {
-        console.error("client.error");
-        console.error(err);
-    });
-    return function(req, res, next) {
+    return function PHPResponder(req, res, next) {
+        var agent = new nphp.Agent(4, {
+            root: options.root,
+            host: options.fastcgiHost,
+            port: options.fastcgiPort,
+            server: {
+                name: options.serverName,
+                host: options.serverHost,
+                port: options.serverPort
+            }
+        });
+        agent.on("error", function(err) {
+            console.error("client.error");
+            console.error(err);
+            res.writeHead(500,{"Content-type":"text/plain"});
+            res.end(err);
+        });
         var script_dir = options.root;
         var matches = req.url.match(/(.+\.php)(.*?)/);
         if(matches != null) {
@@ -92,27 +94,19 @@ module.exports = function fastcgi(newOptions) {
         ]);
 
         // Merging headers so othe rmiddlewares dont get lost.
-        /*
-        var newHeads=[];
-        for(var hdr in headers) {
-            var val = headers[hdr];
-            newHeads.push([val[0], val[1]]);
-        }
         for(var hdr in req.headers) {
             var val = req.headers[hdr];
-            newHeads.push([hdr, val]);
+            var hdr_k = hdr.replace("-","_").toUpperCase();
+            headers.push([hdr_k, val]);
         }
-        req.headers = newHeads;
-        */
         req.php_headers = headers;
 
         agent.request(req, res, function(err, response) {
-            //console.log("-> Connect-Yii: ", request_uri);
             if(err) {
-                console.error(err);
-                res.writeHead({"Content-type": "text/plain"}, 500);
-                res.end(err);
-                //next();
+                console.error(err.stack);
+                res.writeHead(500, {"Content-type": "text/plain"});
+                res.end("An error has occured.");
+                next();
             }
         });
     }

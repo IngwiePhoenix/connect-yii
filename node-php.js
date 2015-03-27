@@ -34,7 +34,7 @@ function client(options) {
 	var sredirectstatus = options.redirectStatus || null;
 	var _current = null;
 
-	////console.log("    --> psname",psname);
+	//////console.log("    --> psname",psname);
 
 	connection.setNoDelay(true);
 	connection.setTimeout(0);
@@ -72,7 +72,7 @@ function client(options) {
 	};
 
 	htparser.onHeaderValue = function (b, start, len) {
-		////console.log("  -> onHeaderValue",b.toString('ascii', start, start+len));
+		//console.log("  -> onHeaderValue",b.toString('ascii', start, start+len));
 		var slice = b.toString('ascii', start, start+len);
 		if (htparser.value) {
 			htparser.value += slice;
@@ -82,7 +82,7 @@ function client(options) {
 	};
 
 	htparser.onHeadersComplete = function (info) {
-		////console.log("  -> info:",info);
+		//console.log("  -> info:",info);
 		if (htparser.field && (htparser.value != undefined)) {
 			var dest = _current.fcgi.headers;
 			if (htparser.field in dest) {
@@ -107,15 +107,17 @@ function client(options) {
 	}
 
 	htparser.onBody = function(buffer, start, len) {
+		//console.log("  -> onBody");
 		_current.resp.write(buffer.slice(start, start + len));
 	}
 
 	connection.parser.onHeader = function(header) {
-		////console.log("  -> Header",header);
+		//console.log("  -> Header",header);
 		_current = requests[header.recordId];
 	}
 
 	connection.parser.onBody = function(buffer, start, len) {
+		//console.log("  -> connection.parser.onBody");
 		////console.log(buffer.toString("utf8", start, start + len));
 		if(!_current.fcgi.body) {
 			htparser.reinitialize("response");
@@ -124,6 +126,15 @@ function client(options) {
 			var contents = content.split("\r\n\r\n");
 			var status = contents[0];
 			var match = status.match(phprx);
+			// Add headers
+			if(typeof contents[1] != "undefined") {
+				// We have headers to use.
+				var hdrs = contents[0].split("\r\n");
+				for(i=0; i<hdrs.length; i++) {
+					var parts = hdrs[i].split(": ");
+					_current.resp.setHeader(parts[0], parts[1]);
+				}
+			}
 			if(match) {
 				var header = match[0];
 				var buff = buffer.slice(start + header.length, start + len);
@@ -139,8 +150,7 @@ function client(options) {
 				catch(ex) {
 					_current.cb(ex);
 				}
-			}
-			else {
+			} else {
 				status = new Buffer("HTTP/1.1 200 OK\r\n");
 				try {
 					var parsed = htparser.execute(status, 0, status.length);
@@ -154,31 +164,21 @@ function client(options) {
 					_current.cb(ex);
 				}
 			}
-			// Add headers
-			////console.log(contents[0]);
-			if(typeof contents[1] != "undefined") {
-				// We have headers to use.
-				var hdrs = contents[0].split("\r\n");
-				for(i=0; i<hdrs.length; i++) {
-					var parts = hdrs[i].split(": ");
-					_current.resp.setHeader(parts[0], parts[1]);
-				}
-			}
 			var toPrint;// = contents[1] || contents[0];
 			if(typeof contents[1] == "undefined") {
 				toPrint = contents[0];
 			} else {
 				toPrint = contents[1];
 			}
-			////console.log("  -> Printing:", toPrint);
-			////console.log("  -> Contents:",contents);
+			//////console.log("  -> Printing:", toPrint);
+			//////console.log("  -> Contents:",contents);
 			_current.resp.write(toPrint);
 			_current.fcgi.body = true;
 		}
 		else {
 			try {
 				var parsed = htparser.execute(buffer, start, len);
-				////console.log("-> Parsed message:",parsed);
+				//////console.log("-> Parsed message:",parsed);
 				if(parsed.message == "Parse Error" && ("bytesParsed" in parsed)) {
 					_current.resp.write(buffer.slice(start + parsed.bytesParsed, start + len));
 				}
@@ -190,7 +190,7 @@ function client(options) {
 	}
 
 	connection.parser.onRecord = function(record) {
-		////console.log(record);
+		//console.log("  -> onRecord");
 		var recordId = parseInt(record.header.recordId);
 		var request = requests[recordId];
 		switch(record.header.type) {
@@ -223,6 +223,7 @@ function client(options) {
 	}
 
 	connection.ondata = function (buffer, start, end) {
+		//console.log("  -> ondata");
 		connection.parser.execute(buffer, start, end);
 	};
 
@@ -262,7 +263,7 @@ function client(options) {
 		req.resume();
 		var params = connection.params.slice(0);
 		params = req.php_headers;
-		//console.log(req.headers);
+		////console.log(req.headers);
 		//TODO: probably better to find a generic way of translating all http headers on request into PHP headers
 		if("user-agent" in req.headers) {
 			params.push(["HTTP_USER_AGENT", req.headers["user-agent"]]);
@@ -333,18 +334,41 @@ function client(options) {
 					request.cb(new Error("not implemented"));
 					break;
 				case "POST":
-					req.on("data", function(chunk) {
+					if(typeof req.rawBody == "undefined") {
+						req.on("data", function(chunk) {
+							//console.log("  -> POST:",chunk);
+							connection.writer.writeHeader({
+								"version": fastcgi.constants.version,
+								"type": fastcgi.constants.record.FCGI_STDIN,
+								"recordId": request.id,
+								"contentLength": chunk.length,
+								"paddingLength": 0
+							});
+							connection.writer.writeBody(chunk);
+							connection.write(connection.writer.tobuffer());
+						});
+						req.on("end", function() {
+							connection.writer.writeHeader({
+								"version": fastcgi.constants.version,
+								"type": fastcgi.constants.record.FCGI_STDIN,
+								"recordId": request.id,
+								"contentLength": 0,
+								"paddingLength": 0
+							});
+							connection.write(connection.writer.tobuffer());
+						});
+					} else {
+						// A raw body exists, so we can use it.
 						connection.writer.writeHeader({
 							"version": fastcgi.constants.version,
 							"type": fastcgi.constants.record.FCGI_STDIN,
 							"recordId": request.id,
-							"contentLength": chunk.length,
+							"contentLength": req.rawBody.length,
 							"paddingLength": 0
 						});
-						connection.writer.writeBody(chunk);
+						connection.writer.writeBody(req.rawBody);
 						connection.write(connection.writer.tobuffer());
-					});
-					req.on("end", function() {
+						// Done
 						connection.writer.writeHeader({
 							"version": fastcgi.constants.version,
 							"type": fastcgi.constants.record.FCGI_STDIN,
@@ -353,7 +377,7 @@ function client(options) {
 							"paddingLength": 0
 						});
 						connection.write(connection.writer.tobuffer());
-					});
+					}
 					break;
 				case "DELETE":
 					request.cb(new Error("not implemented"));
