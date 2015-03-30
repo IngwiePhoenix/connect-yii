@@ -34,7 +34,8 @@ module.exports = function fastcgi(newOptions) {
         index: "index.php",
         serverName: "localhost",
         serverHost: "127.0.0.1",
-        serverPort: 80
+        serverPort: 80,
+        keepalive: false
     };
     for (var k in newOptions) {
         options[k] = newOptions[k];
@@ -49,13 +50,14 @@ module.exports = function fastcgi(newOptions) {
                 name: options.serverName,
                 host: options.serverHost,
                 port: options.serverPort
-            }
+            },
+            keepalive: options.keepalive
         });
         agent.on("error", function(err) {
             console.error("client.error");
             console.error(err);
             res.writeHead(500,{"Content-type":"text/plain"});
-            res.end(err);
+            res.end(JSON.stringify(err));
         });
         var script_dir = options.root;
         var matches = req.url.match(/(.+\.php)(.*?)/);
@@ -105,7 +107,7 @@ module.exports = function fastcgi(newOptions) {
             if(err) {
                 console.error(err.stack);
                 res.writeHead(500, {"Content-type": "text/plain"});
-                res.end("An error has occured.");
+                res.end(err);
                 next();
             }
         });

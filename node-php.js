@@ -34,7 +34,7 @@ function client(options) {
 	var sredirectstatus = options.redirectStatus || null;
 	var _current = null;
 
-	//////console.log("    --> psname",psname);
+	////console.log("    --> psname",psname);
 
 	connection.setNoDelay(true);
 	connection.setTimeout(0);
@@ -118,7 +118,7 @@ function client(options) {
 
 	connection.parser.onBody = function(buffer, start, len) {
 		//console.log("  -> connection.parser.onBody");
-		////console.log(buffer.toString("utf8", start, start + len));
+		//console.log(buffer.toString("utf8", start, start + len));
 		if(!_current.fcgi.body) {
 			htparser.reinitialize("response");
 			_current.fcgi.headers = {};
@@ -170,15 +170,15 @@ function client(options) {
 			} else {
 				toPrint = contents[1];
 			}
-			//////console.log("  -> Printing:", toPrint);
-			//////console.log("  -> Contents:",contents);
+			////console.log("  -> Printing:", toPrint);
+			////console.log("  -> Contents:",contents);
 			_current.resp.write(toPrint);
 			_current.fcgi.body = true;
 		}
 		else {
 			try {
 				var parsed = htparser.execute(buffer, start, len);
-				//////console.log("-> Parsed message:",parsed);
+				////console.log("-> Parsed message:",parsed);
 				if(parsed.message == "Parse Error" && ("bytesParsed" in parsed)) {
 					_current.resp.write(buffer.slice(start + parsed.bytesParsed, start + len));
 				}
@@ -215,6 +215,7 @@ function client(options) {
 	};
 
 	connection.parser.onError = function(err) {
+		//console.log("onError", err);
 		_fastcgi.emit("error", err);
 	};
 
@@ -258,12 +259,13 @@ function client(options) {
 	}
 
 	function next() {
+		//debugger;
 		var request = queue.shift();
 		var req = request.req;
 		req.resume();
 		var params = connection.params.slice(0);
 		params = req.php_headers;
-		////console.log(req.headers);
+		//console.log("Request headers", req.headers);
 		//TODO: probably better to find a generic way of translating all http headers on request into PHP headers
 		if("user-agent" in req.headers) {
 			params.push(["HTTP_USER_AGENT", req.headers["user-agent"]]);
@@ -359,15 +361,22 @@ function client(options) {
 						});
 					} else {
 						// A raw body exists, so we can use it.
-						connection.writer.writeHeader({
-							"version": fastcgi.constants.version,
-							"type": fastcgi.constants.record.FCGI_STDIN,
-							"recordId": request.id,
-							"contentLength": req.rawBody.length,
-							"paddingLength": 0
-						});
-						connection.writer.writeBody(req.rawBody);
-						connection.write(connection.writer.tobuffer());
+						var rbBuf = req.rawBody;
+						var size = 32*1024; // kb -> bytes = what i want.
+						for(var i=0; i*size<rbBuf.length; i++) {
+							var from = i===0 ? 0 : (i*size);
+							var to = ((i*size)+size);
+							var nbuf = rbBuf.slice(from, to);
+							connection.writer.writeHeader({
+								"version": fastcgi.constants.version,
+								"type": fastcgi.constants.record.FCGI_STDIN,
+								"recordId": request.id,
+								"contentLength": nbuf.length,
+								"paddingLength": 0
+							});
+							connection.writer.writeBody(nbuf);
+							connection.write(connection.writer.tobuffer());
+						}
 						// Done
 						connection.writer.writeHeader({
 							"version": fastcgi.constants.version,
@@ -406,8 +415,7 @@ function client(options) {
 		if(!connection.fd) {
 			req.pause();
 			_fastcgi.connect();
-		}
-		else if(keepalive && queue.length == 1){
+		} else if(keepalive && queue.length == 1){
 			next();
 		}
 	}
@@ -432,8 +440,7 @@ function agent(nc, options) {
 		client.request(req, resp, cb);
 		if(current == nc - 1) {
 			current = 0;
-		}
-		else {
+		} else {
 			current++;
 		}
 	}
