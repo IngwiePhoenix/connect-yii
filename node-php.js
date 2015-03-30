@@ -5,6 +5,7 @@ var events = require("events");
 var url = require("url");
 var inherits = require("util").inherits;
 var HTTPParser = process.binding("http_parser").HTTPParser;
+var stream = require("stream");
 
 /*
 
@@ -333,7 +334,7 @@ function client(options) {
 					connection.write(connection.writer.tobuffer());
 					break;
 				case "PUT":
-					request.cb(new Error("not implemented"));
+					request.cb(new Error("PUT: not implemented"));
 					break;
 				case "POST":
 					if(typeof req.rawBody == "undefined") {
@@ -362,34 +363,52 @@ function client(options) {
 					} else {
 						// A raw body exists, so we can use it.
 						var rbBuf = req.rawBody;
-						var size = 32*1024; // kb -> bytes = what i want.
-						for(var i=0; i*size<rbBuf.length; i++) {
-							var from = i===0 ? 0 : (i*size);
-							var to = ((i*size)+size);
+						var size = fastcgi.constants.general.FCGI_MAX_BODY-1;
+						var st = new stream.Readable;
+						st.__i = 0;
+						st._read = function(n) {
+							if(this.__i*size >= rbBuf.length+1) {
+								return this.push(null);
+							}
+							var from = (this.__i*size);
+							var to = ((this.__i*size)+size);
 							var nbuf = rbBuf.slice(from, to);
+							this.push(nbuf);
+							console.log("Stats",{
+								i: this.__i,
+								from: from,
+								to: to,
+								length: rbBuf.length,
+								"content-length": req.headers["content-length"],
+								"buffer-length": nbuf.length
+							});
+							this.__i++;
+						}
+						st.on("data", function(chunk) {
 							connection.writer.writeHeader({
 								"version": fastcgi.constants.version,
 								"type": fastcgi.constants.record.FCGI_STDIN,
 								"recordId": request.id,
-								"contentLength": nbuf.length,
+								"contentLength": chunk.length,
 								"paddingLength": 0
 							});
-							connection.writer.writeBody(nbuf);
+							connection.writer.writeBody(chunk);
 							connection.write(connection.writer.tobuffer());
-						}
-						// Done
-						connection.writer.writeHeader({
-							"version": fastcgi.constants.version,
-							"type": fastcgi.constants.record.FCGI_STDIN,
-							"recordId": request.id,
-							"contentLength": 0,
-							"paddingLength": 0
 						});
-						connection.write(connection.writer.tobuffer());
+						st.on("end", function() {
+							connection.writer.writeHeader({
+								"version": fastcgi.constants.version,
+								"type": fastcgi.constants.record.FCGI_STDIN,
+								"recordId": request.id,
+								"contentLength": 0,
+								"paddingLength": 0
+							});
+							connection.write(connection.writer.tobuffer());
+						});
 					}
 					break;
 				case "DELETE":
-					request.cb(new Error("not implemented"));
+					request.cb(new Error("DELETE: not implemented"));
 					break;
 			}
 		}
